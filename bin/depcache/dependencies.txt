@@ -820,10 +820,12 @@ java.util.Collections
 simpledb.transaction.TransactionAbortedException
 ||:simpledb.execution.Filter
 simpledb.common.DbException
+simpledb.execution.OpIterator
 simpledb.execution.Operator
 java.util.NoSuchElementException
 simpledb.execution.Filter
 simpledb.transaction.TransactionAbortedException
+simpledb.execution.Predicate
 ||:simpledb.HeapPageReadTest
 simpledb.TestUtil$SkeletonFile
 junit.framework.JUnit4TestAdapter

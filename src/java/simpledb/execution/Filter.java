@@ -21,31 +21,43 @@ public class Filter extends Operator {
      * @param p     The predicate to filter tuples with
      * @param child The child operator
      */
+    private Predicate p;
+    private OpIterator child;
     public Filter(Predicate p, OpIterator child) {
-        // TODO: some code goes here
+        // saving variables
+        this.p = p;
+        this.child = child;
     }
 
     public Predicate getPredicate() {
         // TODO: some code goes here
-        return null;
+        return p;
     }
 
     public TupleDesc getTupleDesc() {
-        // TODO: some code goes here
-        return null;
+        // return the TupleDesc of the child operator;
+        return child.getTupleDesc();
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // TODO: some code goes here
+        // call open() method from of the operator class:
+        super.open();
+        //opening the child operator:
+        child.open();
     }
 
     public void close() {
-        // TODO: some code goes here
+        // release resources held by the parent operator:
+        super.close();
+        //release any resources held by the child operator
+        child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // TODO: some code goes here
+        // resets the state of the filter operator and its child operator
+       child.rewind();
+
     }
 
     /**
@@ -59,19 +71,35 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // TODO: some code goes here
+        //If child operator is not open, throw an exception
+        if (child == null)
+            throw new NoSuchElementException();
+        //keep looping until there are no more tuples to return
+        while (child.hasNext()) {
+            Tuple t = child.next();
+            //evaluate the predicate on the tuple to check if it passes
+            if (p.filter(t)) {
+                return t;
+            }
+        }
+        //no more tuples to return
         return null;
+
     }
 
     @Override
     public OpIterator[] getChildren() {
-        // TODO: some code goes here
-        return null;
+        OpIterator[] children = new OpIterator[1];
+        children[0] = child;
+        return children;
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // TODO: some code goes here
+        if (children == null || children.length == 0) {
+            return;
+        }
+        child =  children[0];
     }
 
 }
