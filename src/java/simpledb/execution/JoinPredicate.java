@@ -42,6 +42,10 @@ public class JoinPredicate implements Serializable {
      * @return true if the tuples satisfy the predicate.
      */
     public boolean filter(Tuple t1, Tuple t2) {
+        //check if either t1 and t2 are null, if so return null
+        if (t1 == null || t2 == null) {
+            return false;
+        }
         // get the fields to compare from the tuples
         Field ff1 = t1.getField(field1);
         Field ff2 = t2.getField(field2);

@@ -89,6 +89,7 @@ public class Filter extends Operator {
 
     @Override
     public OpIterator[] getChildren() {
+        //done
         OpIterator[] children = new OpIterator[1];
         children[0] = child;
         return children;
@@ -96,6 +97,7 @@ public class Filter extends Operator {
 
     @Override
     public void setChildren(OpIterator[] children) {
+        //done
         if (children == null || children.length == 0) {
             return;
         }

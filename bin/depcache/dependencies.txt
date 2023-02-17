@@ -1157,10 +1157,17 @@ simpledb.RecordIdTest
 org.junit.Assert
 ||:simpledb.execution.Join
 simpledb.common.DbException
+[Lsimpledb.execution.OpIterator;
+simpledb.execution.OpIterator
+simpledb.storage.Tuple
 simpledb.execution.Operator
+java.lang.IllegalArgumentException
+simpledb.execution.JoinPredicate
 java.util.NoSuchElementException
 simpledb.execution.Join
+simpledb.storage.TupleDesc
 simpledb.transaction.TransactionAbortedException
+java.util.ArrayList
 ||:simpledb.SimpleDb
 java.lang.System
 java.lang.Integer
