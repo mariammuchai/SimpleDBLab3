@@ -59,11 +59,17 @@ public class Tuple implements Serializable {
      * @param f new value for the field.
      */
     public void setField(int i, Field f) {
+        if (f == null) {
+            throw new IllegalArgumentException("Field cannot be null");
+        }
+
         if (f.getType() != td.getFieldType(i)) {
             throw new RuntimeException("Invalid field type in Tuple.setField()");
         }
+
         fields[i] = f;
     }
+
 
     /**
      * @param i field index to return. Must be a valid index.
