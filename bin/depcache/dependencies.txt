@@ -1082,6 +1082,7 @@ simpledb.transaction.TransactionAbortedException
 ||:simpledb.execution.Aggregate
 simpledb.common.DbException
 simpledb.common.Type
+simpledb.storage.Tuple
 simpledb.storage.TupleDesc
 [Ljava.lang.String;
 simpledb.execution.Aggregator$Op

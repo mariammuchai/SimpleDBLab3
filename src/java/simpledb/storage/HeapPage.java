@@ -27,6 +27,8 @@ public class HeapPage implements Page {
 
     byte[] oldData;
     private final Byte oldDataLock = (byte) 0;
+    private boolean isDirty;
+    private TransactionId dirtyTransaction;
 
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
@@ -50,6 +52,8 @@ public class HeapPage implements Page {
         this.td = Database.getCatalog().getTupleDesc(id.getTableId());
         this.numSlots = getNumTuples();
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data));
+        this.isDirty = false;
+        this.dirtyTransaction = null;
 
         // allocate and read the header slots of this page
         header = new byte[getHeaderSize()];
@@ -256,7 +260,23 @@ public class HeapPage implements Page {
      *                     already empty.
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // TODO: some code goes here
+        //done
+        //get the record ID of the tuple to delete
+        RecordId recordId = t.getRecordId();
+
+        //check that the tuple is on this page
+        if (recordId == null || recordId.getPageId() != this.pid) {
+            throw new DbException("Tuple is not on this page!");
+        }
+        //get the slot number of the tuple to be deleted
+        int slotNumber = recordId.getTupleNumber();
+        //check that the slot is currently used
+        if (!isSlotUsed(slotNumber)) {
+            throw new DbException("Tuple slot is already empty!");
+        }
+        //mark the slot as unused and clear the tuple data
+        markSlotUsed(slotNumber, false);
+        tuples[slotNumber] = null;
     }
 
     /**
@@ -268,23 +288,62 @@ public class HeapPage implements Page {
      *                     is mismatch.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // TODO: some code goes here
+        // Check that the tuple descriptor matches the table's tuple descriptor
+        if (getNumUnusedSlots() == 0 || !td.equals(t.getTupleDesc())) {
+            throw new DbException("TupleDesc don't match or heappage is full");
+        }
+
+        // Look for the first free slot using a linear search
+        int slotNumber = -1;
+        for (int i = 0; i < numSlots; i++) {
+            if (!isSlotUsed(i)) {
+                slotNumber = i;
+                break;
+            }
+        }
+
+        if (slotNumber != -1) {
+            // Found a free slot, mark it as used and set the tuple
+            markSlotUsed(slotNumber, true);
+            tuples[slotNumber] = t;
+
+            // Set the record ID of the tuple
+            t.setRecordId(new RecordId(pid, slotNumber));
+        }
     }
+
 
     /**
      * Marks this page as dirty/not dirty and record that transaction
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // TODO: some code goes here
+        // done:
+        //mark the pages as dirty or not dirty
+        isDirty = dirty;
+        if (dirty) {
+            //if the page is marked dirty, record the transaction ID of the
+            //transaction that made the changes to the page
+            dirtyTransaction = tid;
+        } else {
+            //if the page is not marked dirty, clear the transaction ID
+            dirtyTransaction = null;
+        }
     }
 
     /**
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // TODO: some code goes here
-        return null;      
+        //done
+        //check if the page is dirty
+        if (isDirty) {
+            //Page is dirty, return the transaction ID that dirtied it
+            return dirtyTransaction;
+        } else {
+            //page is not dirty, return null
+            return null;
+        }
     }
 
     /**
@@ -311,7 +370,18 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-        // TODO: some code goes here
+        // done
+        // Compute the byte index and bit mask for the header slot
+        int byteIndex = i / 8;
+        byte slotMask = (byte) (1 << (i % 8));
+
+        // Compute the bit value to set based on the input boolean value
+        byte bitValue = (byte) (value ? slotMask : 0);
+
+        // Update the header byte to mark the slot as used or unused
+        byte currentByteValue = header[byteIndex];
+        byte newByteValue = (byte) ((currentByteValue & ~slotMask) | bitValue);
+        header[byteIndex] = newByteValue;
     }
 
     /**
