@@ -163,8 +163,19 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // TODO: some code goes here
+        // Get the heap file for the table
+        HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+
+        // Insert the tuple into the heap file
+        List<Page> modifiedPages = file.insertTuple(tid, t);
+
+        // Mark all modified pages as dirty and add them to the buffer pool
+        modifiedPages.forEach(page -> {
+            page.markDirty(true, tid);
+            pages.put(page.getId(), page);
+        });
     }
+
 
     /**
      * Remove the specified tuple from the buffer pool.
@@ -181,7 +192,18 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // TODO: some code goes here
+        // done:
+        // Get the heap file for the tuple
+        HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+
+        // Delete the tuple from the heap file
+        List<Page> modifiedPages = file.deleteTuple(tid, t);
+
+        // Mark all modified pages as dirty and add them to the buffer pool
+        for (Page page : modifiedPages) {
+            page.markDirty(true, tid);
+            pages.put(page.getId(), page);
+        }
     }
 
     /**
