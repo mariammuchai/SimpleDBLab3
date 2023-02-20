@@ -102,38 +102,27 @@ public class Insert extends Operator {
             return null;
         }
 
-        // Keep track of how many tuples we've inserted
         int count = 0;
         List<Tuple> tuples = new ArrayList<>();
 
-        // Add all tuples from the child operator into a list
-        child.open();
         while (child.hasNext()) {
             Tuple t = child.next();
             tuples.add(t);
         }
-        child.close();
 
         try {
-            // Insert all tuples into the table
             HeapFile table = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
             for (Tuple t : tuples) {
                 table.insertTuple(this.t, t);
                 count++;
             }
         } catch (IOException e) {
-            // Throw an exception if we couldn't insert the Tuple
             throw new DbException("Unable to insert tuple: " + e.getMessage());
-
         }
 
-        // Create a new tuple to hold the result
         Tuple result = new Tuple(getTupleDesc());
-        // Set the first field of the result tuple to the number of tuples inserted
         result.setField(0, new IntField(count));
-        // Mark that we've inserted the tuples so we don't insert them again
         inserted = true;
-        // Return the result tuple
         return result;
     }
 
