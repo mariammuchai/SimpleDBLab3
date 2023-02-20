@@ -108,8 +108,13 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if i is not a valid field reference.
      */
     public Type getFieldType(int i) throws NoSuchElementException {
+        if (i < 0 || i >= tdItems.length) {
+            throw new NoSuchElementException("No field found at index " + i);
+        }
         return tdItems[i].fieldType;
     }
+
+
 
     /**
      * Find the index of the field with a given name.

@@ -67,18 +67,21 @@ public class IntegerAggregator implements Aggregator {
      * @param tup the Tuple containing an aggregate field and a group-by field
      */
     public void mergeTupleIntoGroup(Tuple tup) {
+        //get the value of the group by field from the tuple
         Field groupByField = gbfield == NO_GROUPING ? null : tup.getField(gbfield);
-
+        //get the list of group values for the group by field, creating a new one if it does not already exist
         ArrayList<Integer> groupVals = groupFields.computeIfAbsent(groupByField, k -> new ArrayList<>());
-
+        //get the value of the aggregate field from the tuple
         int newFieldVal = ((IntField) tup.getField(afield)).getValue();
-
+        //add one to the group if the operator is count
         if (op == Op.COUNT) {
             groupVals.add(1);
         } else {
+            //If the group is empty, add the new aggregate value
             if (groupVals.isEmpty()) {
                 groupVals.add(newFieldVal);
             } else {
+                //otherwise, update the aggregatevalue according to the operator
                 int aggregateVal = groupVals.get(0);
                 switch (op) {
                     case SUM:
@@ -96,6 +99,7 @@ public class IntegerAggregator implements Aggregator {
                     default:
                         throw new IllegalArgumentException("Invalid operator");
                 }
+                //set the updated aggregate value in the group list
                 groupVals.set(0, aggregateVal);
             }
         }

@@ -60,11 +60,17 @@ public class StringAggregator implements Aggregator {
      * @param tup the Tuple containing an aggregate field and a group-by field
      */
     public void mergeTupleIntoGroup(Tuple tup) {
-        // done
+        // Get the value of the group-by field from the tuple
         Field groupByField = gbfield == Aggregator.NO_GROUPING ? null : tup.getField(gbfield);
 
         // Increment the count for the corresponding group-by field
-        groupCounts.compute(groupByField, (k, v) -> v == null ? 1 : v + 1);
+        if (groupCounts.containsKey(groupByField)) {
+            groupCounts.put(groupByField, groupCounts.get(groupByField) + 1);
+        } else {
+            groupCounts.put(groupByField, 1);
+        }
+        // Assert that the count for the group-by field is greater than 0
+        assert groupCounts.get(groupByField) > 0;
     }
 
     /**
@@ -76,26 +82,35 @@ public class StringAggregator implements Aggregator {
      *         aggregate specified in the constructor.
      */
     public OpIterator iterator() {
-        // done
+        // Create a new list to hold the tuples that will be returned by the iterator
         List<Tuple> tuples = new ArrayList<>();
 
+        // Iterate over the groupCounts map to create a tuple for each group
         for (Map.Entry<Field, Integer> entry : groupCounts.entrySet()) {
+            // Get the group-by field and the count for this group
             Field groupVal = entry.getKey();
             int groupCount = entry.getValue();
 
+            // Create a new tuple with the result tuple descriptor
             Tuple t = new Tuple(resultTD);
 
+            // If there is no grouping, set the aggregate value for the single tuple
             if (gbfield == Aggregator.NO_GROUPING) {
                 t.setField(0, new IntField(groupCount));
             } else {
+                // If there is grouping, set the group-by field value of this tuple
                 t.setField(0, groupVal);
+                // Set the aggregate value for this tuple as the count of the group
                 t.setField(1, new IntField(groupCount));
             }
 
+            // Add the tuple to the list of tuples
             tuples.add(t);
         }
 
+        // Create a new TupleIterator with the result tuple descriptor and list of tuples
         return new TupleIterator(resultTD, tuples);
     }
+
 
 }
