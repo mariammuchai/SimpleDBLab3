@@ -29,26 +29,43 @@ public class Delete extends Operator {
      */
     //initializing variables
     private TransactionId t;
+    private OpIterator child;
+    private boolean deleted;
+    private boolean inserted = false;
+
 
     public Delete(TransactionId t, OpIterator child) {
-        // TODO: some code goes here
+        // done
+        this.t = t;
+        this.child = child;
+        this.deleted = false;
     }
 
     public TupleDesc getTupleDesc() {
-        // TODO: some code goes here
-        return null;
+        // done
+        //the tuple description for a delete operator is a single integer field
+        Type[] typeArr = new Type[]{Type.INT_TYPE};
+        return new TupleDesc(typeArr);
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // TODO: some code goes here
+        // Open the child operator
+        child.open();
+        super.open();
     }
 
     public void close() {
-        // TODO: some code goes here
+        // done
+        //close the child operator
+        super.close();
+        child.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // TODO: some code goes here
+        // done
+        //rewind the child operator
+        child.rewind();
+        deleted = false;
     }
 
     /**
@@ -61,19 +78,55 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // TODO: some code goes here
-        return null;
+        // If we have already deleted the tuples, there's nothing more to fetch
+        if (inserted) {
+            return null;
+        }
+
+        // Keep track of how many tuples we've deleted
+        int count = 0;
+
+        // Loop through all the tuples returned by the child operator
+        while (child.hasNext()) {
+            Tuple t = child.next();
+            boolean deleted = false;
+
+            // Delete the tuple from the database using the buffer pool
+            try {
+                Database.getBufferPool().deleteTuple(this.t, t);
+                count++;
+            } catch (IOException e) {
+                // Throw an exception if we couldn't delete the Tuple
+                throw new DbException("Unable to delete tuple");
+            }
+
+        }
+
+        // Create a new tuple to hold the result
+        Tuple result = new Tuple(getTupleDesc());
+        // Set the first field of the result tuple to the number of tuples deleted
+        result.setField(0, new IntField(count));
+        // Mark that we've deleted the tuples so we don't delete them again
+        inserted = true;
+        // Return the result tuple
+        return result;
     }
+
+
+
+
+
 
     @Override
     public OpIterator[] getChildren() {
-        // TODO: some code goes here
-        return null;
+        // done
+        return new OpIterator[] {child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // TODO: some code goes here
+        // done
+        this.child = children[0];
     }
 
 }
