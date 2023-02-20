@@ -212,9 +212,19 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // TODO: some code goes here
-
+        //done
+        // Iterate through all pages in the buffer pool
+        for (Page page : pages.values()) {
+            // If the page is dirty, write it back to disk
+            if (page.isDirty() != null) {
+                HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(page.getId().getTableId());
+                file.writePage(page);
+                // Mark the page as not dirty after flushing it
+                page.markDirty(false, null);
+            }
+        }
     }
+
 
     /**
      * Remove the specific page id from the buffer pool.
@@ -226,7 +236,8 @@ public class BufferPool {
      * are removed from the cache so they can be reused safely
      */
     public synchronized void removePage(PageId pid) {
-        // TODO: some code goes here
+        // done
+        pages.remove(pid);
     }
 
     /**
@@ -235,23 +246,59 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-        // TODO: some code goes here
+        //done
+        // Find the page with the given ID in the buffer pool
+        Page page = pages.get(pid);
+        if (page == null) {
+            throw new IOException("Page not found in buffer pool");
+        }
+
+        // If the page is dirty, write it to disk and mark it as not dirty
+        if (page.isDirty() != null) {
+            Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+            page.markDirty(false, null);
+        }
     }
+
 
     /**
      * Write all pages of the specified transaction to disk.
      */
+    /**
+     * Write all pages of the specified transaction to disk.
+     */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // TODO: some code goes here
-        // not necessary for lab1|lab2
+        //done
+        // Iterate over all the pages in the buffer pool
+        for (Page p : pages.values()) {
+            if (p.isDirty() != null && p.isDirty().equals(tid)) {
+                // Flush the page if it belongs to the specified transaction
+                flushPage(p.getId());
+            }
+        }
     }
+
 
     /**
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        // TODO: some code goes here
+        //done
+        for (PageId pid : pages.keySet()) {
+            Page page = pages.get(pid);
+            if (page.isDirty() == null) {
+                try {
+                    flushPage(pid);
+                } catch (IOException e) {
+                    throw new DbException("Could not evict page");
+                }
+                pages.remove(pid);
+                return;
+            }
+        }
+        throw new DbException("No page can be evicted");
     }
+
 
 }
