@@ -78,7 +78,7 @@ public class Predicate implements Serializable {
      */
     public Op getOp() {
         // return the comparison operator;
-        return op;
+        return this.op;
     }
 
     /**
@@ -86,7 +86,7 @@ public class Predicate implements Serializable {
      */
     public Field getOperand() {
         // return operand field value to compare
-        return operand;
+        return this.operand;
     }
 
     /**

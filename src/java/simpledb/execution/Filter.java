@@ -31,7 +31,7 @@ public class Filter extends Operator {
 
     public Predicate getPredicate() {
         // TODO: some code goes here
-        return p;
+        return this.p;
     }
 
     public TupleDesc getTupleDesc() {
@@ -78,7 +78,7 @@ public class Filter extends Operator {
         while (child.hasNext()) {
             Tuple t = child.next();
             //evaluate the predicate on the tuple to check if it passes
-            if (p.filter(t)) {
+            if (getPredicate().filter(t)) {
                 return t;
             }
         }

@@ -4,10 +4,15 @@ import simpledb.common.DbException;
 import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 import simpledb.transaction.TransactionAbortedException;
+import simpledb.storage.Field;
 
 import java.util.NoSuchElementException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.HashMap;
+
+
 
 
 /**
@@ -34,6 +39,9 @@ public class Join extends Operator {
     private ArrayList<Tuple> leftTuples = new ArrayList<>();
     private Iterator<Tuple> leftTuplesIter;
     private Iterator<Tuple> rightTuplesIter;
+    private Iterator<Tuple> tuplesIterator;
+    private List<Tuple> joinedTuples;
+    private boolean computed;
 
     public Join(JoinPredicate p, OpIterator child1, OpIterator child2) {
         //checking if child1 or child2 are null before saving them
@@ -47,10 +55,12 @@ public class Join extends Operator {
         this.leftTuplesIter = leftTuples.iterator();
         this.rightTuplesIter = rightTuples.iterator();
         this.t = null;
+        computed = false;
+        tuplesIterator = null;
+        this.joinedTuples = new ArrayList<Tuple>();
 
 
     }
-
 
     public JoinPredicate getJoinPredicate() {
         // done
@@ -147,48 +157,95 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // Keep looping while there are still tuples to join
-        while (this.child1.hasNext() || this.t != null) {
-            // Get the next tuple from child1 if it hasn't been retrieved yet
-            if (this.child1.hasNext() && this.t == null) {
-                t = child1.next();
+        //set the left and right child opIterators
+        OpIterator leftChild = this.child1;
+        OpIterator rightChild = this.child2;
+        //check if both children exist
+        if (leftChild == null || rightChild == null) {
+            throw new NoSuchElementException();
+        }
+        //if the join hasn't been computed yet, compute it
+        if (!computed) {
+            // Create hashmaps to store tuples from the left and right child
+            HashMap<Field, ArrayList<Tuple>> leftTuplesMap = new HashMap<>();
+            HashMap<Field, ArrayList<Tuple>> rightTuplesMap = new HashMap<>();
+
+            // Store tuples from the left child in the leftTuplesMap
+            while (leftChild.hasNext()) {
+                Tuple leftTuple = leftChild.next();
+                Field leftField = leftTuple.getField(this.p.getField1());
+
+                // Create an arraylist of tuples for each unique field value
+                ArrayList<Tuple> leftTuples = leftTuplesMap.getOrDefault(leftField, new ArrayList<>());
+                leftTuples.add(leftTuple);
+                leftTuplesMap.put(leftField, leftTuples);
             }
-            // Loop through child2 to find matching tuples
-            while (child2.hasNext()) {
-                Tuple t2 = child2.next();
-                // If a matching tuple is found, merge the two tuples and return the result
-                if (p.filter(t, t2)) {
-                    TupleDesc td1 = t.getTupleDesc();
-                    TupleDesc td2 = t2.getTupleDesc();
-                    TupleDesc newTd = TupleDesc.merge(td1, td2);
-                    Tuple newTuple = new Tuple(newTd);
-                    newTuple.setRecordId(t.getRecordId());
-                    int i = 0;
-                    // Copy fields from the left tuple
-                    for (; i < td1.numFields(); ++i) {
-                        newTuple.setField(i, t.getField(i));
+
+            // Store tuples from the right child in the rightTuplesMap
+            while (rightChild.hasNext()) {
+                Tuple rightTuple = rightChild.next();
+                Field rightField = rightTuple.getField(this.p.getField2());
+
+                // Create an arraylist of tuples for each unique field value
+                ArrayList<Tuple> rightTuples = rightTuplesMap.getOrDefault(rightField, new ArrayList<>());
+                rightTuples.add(rightTuple);
+                rightTuplesMap.put(rightField, rightTuples);
+            }
+
+            // Join the tuples using the hashmaps
+            for (Field leftField : leftTuplesMap.keySet()) {
+                ArrayList<Tuple> leftTuples = leftTuplesMap.get(leftField);
+
+                // Check if there are matching tuples in the rightTuplesMap
+                if (rightTuplesMap.containsKey(leftField)) {
+                    ArrayList<Tuple> rightTuples = rightTuplesMap.get(leftField);
+
+                    // Join the matching tuples
+                    for (Tuple leftTuple : leftTuples) {
+                        for (Tuple rightTuple : rightTuples) {
+                            if (this.p.filter(leftTuple, rightTuple)) {
+                                //create a new combined tuple
+                                TupleDesc combinedTupleDesc = this.getTupleDesc();
+                                Tuple combinedTuple = new Tuple(combinedTupleDesc);
+                                int combinedTupleIndex = 0;
+                                for (int i = 0; i < leftTuple.getTupleDesc().numFields(); i++) {
+                                    combinedTuple.setField(combinedTupleIndex++, leftTuple.getField(i));
+                                }
+                                for (int j = 0; j < rightTuple.getTupleDesc().numFields(); j++) {
+                                    combinedTuple.setField(combinedTupleIndex++, rightTuple.getField(j));
+                                }
+                                //set the recordId of the combined tuple
+                                combinedTuple.setRecordId(leftTuple.getRecordId());
+                                //Add the combined tuple to the list of joined tuples
+                                joinedTuples.add(combinedTuple);
+                            }
+                        }
                     }
-                    // Copy fields from the right tuple
-                    for (int j = 0; j < td2.numFields(); ++j) {
-                        newTuple.setField(i + j, t2.getField(j));
-                    }
-                    // If we've reached the end of child2, rewind and reset t
-                    if (!child2.hasNext()) {
-                        child2.rewind();
-                        t = null;
-                    }
-                    // Return the new merged tuple
-                    return newTuple;
                 }
             }
-            // If we've reached the end of child2, rewind and reset t
-            child2.rewind();
-            t = null;
+            //set the computed flag to true and initialize the tuplesIterator
+            computed = true;
+            this.tuplesIterator = joinedTuples.iterator();
         }
-        // If there are no more tuples to join, return null
-        return null;
+        //If there are more tuples in the joinedTuples list, return the next tuple
+        if (this.tuplesIterator.hasNext()) {
+            return this.tuplesIterator.next();
+        } else {
+            //if there are no more tuples in the joinedTuples list, rewind the children and reset
+            //the computed flag.
+            child1.rewind();
+            child2.rewind();
+            joinedTuples.clear();
+            computed = false;
+            //fetchNext();
+            this.tuplesIterator= this.joinedTuples.iterator();
+            if (this.tuplesIterator.hasNext()) {
+                return this.tuplesIterator.next();
+            } else {
+                return null;
+            }
+        }
     }
-
 
 
 

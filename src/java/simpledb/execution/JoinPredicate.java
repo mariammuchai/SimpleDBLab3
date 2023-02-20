@@ -55,16 +55,16 @@ public class JoinPredicate implements Serializable {
 
     public int getField1() {
         // return the saved variable field1;
-        return field1;
+        return this.field1;
     }
 
     public int getField2() {
         // return the saved variable field2;
-        return field2;
+        return this.field2;
     }
 
     public Predicate.Op getOperator() {
         // return the saved variable op;
-        return op;
+        return this.op;
     }
 }
