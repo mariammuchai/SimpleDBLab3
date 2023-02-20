@@ -284,21 +284,33 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized void evictPage() throws DbException {
-        //done
-        for (PageId pid : pages.keySet()) {
-            Page page = pages.get(pid);
+        // Sort the pages by last access time in ascending order
+        List<Page> pageList = new ArrayList<>(pages.values());
+        //Record the access time of each page
+        Map<PageId, Long> accessTimes = new HashMap<>();
+        for (Page page : pageList) {
+            accessTimes.put(page.getId(), System.nanoTime());
+        }
+        //Sort the pages by access time in ascending order
+        Collections.sort(pageList, Comparator.comparingLong(p -> accessTimes.get(p.getId())));
+        //find the least recently used page that is not dirty
+        for (Page page : pageList) {
             if (page.isDirty() == null) {
                 try {
-                    flushPage(pid);
+                    flushPage(page.getId());
                 } catch (IOException e) {
                     throw new DbException("Could not evict page");
                 }
-                pages.remove(pid);
+                pages.remove(page.getId());
                 return;
             }
         }
+        //if all the pages are dirty, none can be evicted
         throw new DbException("No page can be evicted");
     }
+
+
+
 
 
 }
