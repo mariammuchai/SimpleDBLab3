@@ -27,6 +27,9 @@ public class Delete extends Operator {
      * @param t     The transaction this delete runs in
      * @param child The child operator from which to read tuples for deletion
      */
+    //initializing variables
+    private TransactionId t;
+
     public Delete(TransactionId t, OpIterator child) {
         // TODO: some code goes here
     }

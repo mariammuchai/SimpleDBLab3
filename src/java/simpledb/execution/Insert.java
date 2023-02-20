@@ -6,6 +6,18 @@ import simpledb.storage.TupleDesc;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.storage.Tuple;
 import simpledb.common.Type;
+import simpledb.storage.HeapFile;
+import simpledb.storage.BufferPool;
+import simpledb.storage.IntField;
+import simpledb.common.Database;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.ArrayList;
+
+
+
+
 
 /**
  * Inserts tuples read from the child operator into the tableId specified in the
@@ -24,26 +36,51 @@ public class Insert extends Operator {
      * @throws DbException if TupleDesc of child differs from table into which we are to
      *                     insert.
      */
+    //initializing variables
+    private TransactionId t;
+    private OpIterator child;
+    private int tableId;
+    private boolean called;
+    private TupleDesc td;
+    private boolean inserted = false;
     public Insert(TransactionId t, OpIterator child, int tableId)
             throws DbException {
-        // TODO: some code goes here
+        // done
+        this.t = t;
+        this.child = child;
+        this.tableId = tableId;
+        this.called = false;
+        TupleDesc childTd = child.getTupleDesc();
+        HeapFile hf = (HeapFile) simpledb.common.Database.getCatalog().getDatabaseFile(tableId);
+        this.td = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{"Count"});
+        if (!hf.getTupleDesc().equals(childTd)) {
+            throw new DbException("TupleDesc of child differs from table into which we are to insert.");
+        }
     }
 
     public TupleDesc getTupleDesc() {
-        // TODO: some code goes here
-        return null;
+        // done
+        return this.td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // TODO: some code goes here
+        // done
+        super.open();
+        child.open();
+        called = false;
     }
 
     public void close() {
-        // TODO: some code goes here
+        // done
+        super.close();
+        child.close();
+        called = false;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // TODO: some code goes here
+        // done
+        child.rewind();
+        called = false;
     }
 
     /**
@@ -60,18 +97,60 @@ public class Insert extends Operator {
      * @see BufferPool#insertTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // TODO: some code goes here
-        return null;
+        // If we have already inserted the tuples, there's nothing more to fetch
+        if (inserted) {
+            return null;
+        }
+
+        // Keep track of how many tuples we've inserted
+        int count = 0;
+        List<Tuple> tuples = new ArrayList<>();
+
+        // Add all tuples from the child operator into a list
+        child.open();
+        while (child.hasNext()) {
+            Tuple t = child.next();
+            tuples.add(t);
+        }
+        child.close();
+
+        try {
+            // Insert all tuples into the table
+            HeapFile table = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+            for (Tuple t : tuples) {
+                table.insertTuple(this.t, t);
+                count++;
+            }
+        } catch (IOException e) {
+            // Throw an exception if we couldn't insert the Tuple
+            throw new DbException("Unable to insert tuple: " + e.getMessage());
+
+        }
+
+        // Create a new tuple to hold the result
+        Tuple result = new Tuple(getTupleDesc());
+        // Set the first field of the result tuple to the number of tuples inserted
+        result.setField(0, new IntField(count));
+        // Mark that we've inserted the tuples so we don't insert them again
+        inserted = true;
+        // Return the result tuple
+        return result;
     }
+
 
     @Override
     public OpIterator[] getChildren() {
-        // TODO: some code goes here
-        return null;
+        // done
+        return new OpIterator[]{child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // TODO: some code goes here
+        // done
+        if (children.length > 0) {
+            this.child = children[0];
+        } else {
+            this.child = null;
+        }
     }
 }
